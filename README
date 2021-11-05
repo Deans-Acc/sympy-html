@@ -1,0 +1,37 @@
+# Sympy-HTML
+
+## WARNING
+
+THE BACKEND ALLOWS FOR READING AND WRITING ARBITRARY FILES! ONLY GIVE ACCESS TO PEOPLE YOU TRUST!
+
+## README
+
+The purpose of this project is to provide a web REPL for sympy.
+
+It is primarly designed for the IPad with Carnets, but it also works on Linux. (Windows not tested, but should work)
+
+The project has 2 main parts:
+
+- The Python WebSocket backend doing the calculations
+
+- The HTML Frontend intended for use by the end user
+
+## How to run
+
+First install sympy, websockets and pint using pip. (Pint can be removed by deleting line 11 and line 62)
+
+Then run main.py using the Jupyter Notebook or by running it directly.
+
+Now you can just open the index.html file in your browser or run the small code snippet in the Notebook for a basic webserver. (Just use the url printed by main.py in the browser)
+
+When using Carnets you must have the app in the foreground. (IOS freezes apps in the background)
+
+## Notes
+
+The backend only accepts connections from localhost. If you want other people to access the backend use the Trust command with their ip(v4).
+
+THE BACKEND ALLOWS FOR READING AND WRITING ARBITRARY FILES! ONLY GIVE ACCESS TO PEOPLE YOU TRUST!
+
+Use the Help command for a quick definition of every custom command.
+
+Save / Load uses the saves subdirectory, but plot.save has no restrictions!

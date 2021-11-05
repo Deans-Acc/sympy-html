@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+	<meta charset="UTF-8">
+	<title>Title</title>
+	<style>
+		.scroll {
+			width: 45vw;
+			height: 60vh;
+			overflow: auto;
+			float: left;
+			display: inline;
+		}
+	</style>
+</head>
+
+<body style="background-color: white">
+	<div>
+		<pre style="margin: 0" class="scroll" id="output"></pre>
+		<table class="scroll" id="table">
+		</table>
+	</div>
+	<label>
+		<input style="width: 45vw" id="input">
+		<button onclick="press()">Send</button>
+		<input id="N" type="checkbox">
+		Wrap in N?
+		<input id="pretty" type="checkbox" onchange="changePretty()">
+		Pretty print?
+		<input id="deg" type="checkbox" onchange="changeDeg()">
+		Use degree?
+	</label>
+
+
+</body>
+<script>
+	let history = ""
+
+	const SPECIALS = ["Define", "Help", "Info", "List", "Trust", "Save", "Load"]
+	const TABLES = ["Symbol", "Function", "Delete"]
+
+	const output = document.getElementById("output")
+	const input = document.getElementById("input")
+	const N = document.getElementById("N")
+	const pretty = document.getElementById("pretty")
+	const deg = document.getElementById("deg")
+	const table = document.getElementById("table")
+
+	let queue = []
+	let waiting = ""
+
+	pretty.checked = false
+	N.checked = false
+	deg.checked = true
+
+	input.addEventListener("keyup", function (event) {
+		if (event.key === "Enter") {
+			press()
+		}
+	});
+
+	const socket = new WebSocket(`ws://${window.location.hostname}:8001`)
+
+	function doQueue() {
+		if (waiting === "" && queue.length) {
+			waiting = queue.shift()
+			if (waiting.startsWith("NoHistory ")) {
+				waiting = waiting.replace("NoHistory ", "")
+			} else {
+				history += waiting + "\n"
+			}
+			if (waiting.trim() === "") {
+				return
+			}
+			if (waiting.startsWith("System ")) {
+				socket.send(waiting.replace("System ", ""))
+			} else if (waiting.startsWith("Save ")) {
+				output.innerHTML += `Input:  ${"Save " + waiting.split(" ")[1]}\n`
+				output.scrollTop = 99999
+				output.scrollLeft = 99999
+				socket.send(waiting)
+			} else {
+				output.innerHTML += `Input:  ${waiting}\n`
+				output.scrollTop = 99999
+				output.scrollLeft = 99999
+				socket.send(waiting)
+			}
+		}
+	}
+
+	function changePretty() {
+		if (pretty.checked) {
+			queue.push("System pretty")
+		} else {
+			queue.push("System nopretty")
+		}
+		doQueue()
+	}
+
+	function changeDeg() {
+		if (deg.checked) {
+			queue.push("System Define sin Lambda(x, sin(rad(x)))")
+			queue.push("System Define cos Lambda(x, cos(rad(x)))")
+			queue.push("System Define tan Lambda(x, tan(rad(x)))")
+			queue.push("System Define asin Lambda(x, deg(asin(x)))")
+			queue.push("System Define acos Lambda(x, deg(acos(x)))")
+			queue.push("System Define atan Lambda(x, deg(atan(x)))")
+		} else {
+			queue.push("System Delete sin")
+			queue.push("System Delete cos")
+			queue.push("System Delete tan")
+			queue.push("System Delete asin")
+			queue.push("System Delete acos")
+			queue.push("System Delete atan")
+		}
+		doQueue()
+	}
+
+	function changeTable(symbol, value, del) {
+		for (let i = 0; i < table.childNodes.length; i++) {
+			let child = table.childNodes[i]
+			if (child.tagName.toUpperCase() === "TR" && child.firstChild.firstChild.innerText === symbol) {
+				table.removeChild(child)
+				break
+			}
+		}
+		if (!del) {
+			const tr = document.createElement("tr")
+			let td = document.createElement("td")
+			let pre = document.createElement("pre")
+			pre.innerText = symbol
+			td.appendChild(pre)
+			tr.appendChild(td)
+			td = document.createElement("td")
+			pre = document.createElement("pre")
+			pre.innerText = value
+			td.appendChild(pre)
+			tr.appendChild(td)
+			table.appendChild(tr)
+		}
+	}
+
+	function press() {
+		if (input.value.trim() === "") {
+			return
+		}
+
+		const op = input.value.split(" ")[0]
+		let special = false
+
+		if (SPECIALS.indexOf(op) != -1) {
+			special = true
+		}
+		if (TABLES.indexOf(op) != -1) {
+			input.value.split(" ").slice(1).forEach(value => {
+				if (value.trim()) {
+					changeTable(value, op != "Delete" ? op : "", op == "Delete")
+				}
+			})
+			special = true
+		}
+
+		if (N.checked && !special) {
+			input.value = `N(${input.value})`
+		}
+
+		if (op == "Save") {
+			let command = "Save " + input.value.split(" ")[1]
+			// Prevents accidentally saving the file as "System" (the first command always executed)
+			if (command.trim() == "Save" || command.trim() == "Save undefined") {
+				return
+			}
+			command += " " + history
+			queue.push("NoHistory " + command)
+		} else {
+			queue.push(input.value)
+		}
+
+
+		input.value = ""
+		doQueue()
+	}
+	socket.onopen = changeDeg
+	socket.addEventListener('message', function (event) {
+		if (waiting === "") {
+			output.innerHTML += "Unexpected:\n"	// Should never happen
+		} else {
+			if (waiting.startsWith("System ")) {
+				waiting = ""
+				doQueue()
+				return
+			}
+			if (waiting.startsWith("Define ")) {
+				changeTable(waiting.split(" ")[1], event.data, false)
+				waiting = ""
+				doQueue()
+				return
+			}
+			if (waiting.startsWith("Load ")) {
+				if (!event.data.startsWith("Err: ")) {
+					event.data.split("\n").forEach(line => {
+						if (line.trim() != "") {
+							queue.push("NoHistory " + line)
+						}
+					})
+					waiting = ""
+					doQueue()
+					return
+				}
+			}
+			if (event.data === "Ok") {
+				waiting = ""
+				doQueue()
+				return
+			}
+			if (event.data.startsWith("Err: ")) {
+				let x = event.data.replace("Err: ", "")
+				output.innerHTML += `Error:  ${x}\n\n`
+				output.scrollTop = 99999
+				output.scrollLeft = 99999
+				waiting = ""
+				doQueue()
+				return
+			}
+		}
+		output.innerHTML += `Output:${event.data.indexOf("\n") !== -1 ? "\n" : " "}${event.data}\n\n`
+		output.scrollTop = 99999
+		output.scrollLeft = 99999
+		waiting = ""
+		doQueue()
+	})
+</script>
+
+</html>
