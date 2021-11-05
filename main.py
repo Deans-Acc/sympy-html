@@ -189,10 +189,12 @@ ureg - Unit converter from pint""")
     except Exception as e:
         print(f"Websocket went wrong: {str(e)}")
 
-
 async def main():
-    async with websockets.serve(serve_websocket, "0.0.0.0", 8001):
-        await asyncio.Future()
+    server = await websockets.serve(serve_websocket, "0.0.0.0", 8001)
+    await server.wait_closed()
 
 if __name__ == '__main__':
-    asyncio.run(main())
+    if asyncio.get_event_loop().is_running():
+        asyncio.create_task(main())
+    else:
+        asyncio.get_event_loop().run_until_complete(main())
