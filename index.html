@@ -78,12 +78,12 @@
 			} else if (waiting.startsWith("Save ")) {
 				output.innerHTML += `Input:  ${"Save " + waiting.split(" ")[1]}\n`
 				output.scrollTop = 99999
-				output.scrollLeft = 99999
+				output.scrollLeft = -99999
 				socket.send(waiting)
 			} else {
 				output.innerHTML += `Input:  ${waiting}\n`
 				output.scrollTop = 99999
-				output.scrollLeft = 99999
+				output.scrollLeft = -99999
 				socket.send(waiting)
 			}
 		}
@@ -218,7 +218,7 @@
 				let x = event.data.replace("Err: ", "")
 				output.innerHTML += `Error:  ${x}\n\n`
 				output.scrollTop = 99999
-				output.scrollLeft = 99999
+				output.scrollLeft = -99999
 				waiting = ""
 				doQueue()
 				return
@@ -226,7 +226,7 @@
 		}
 		output.innerHTML += `Output:${event.data.indexOf("\n") !== -1 ? "\n" : " "}${event.data}\n\n`
 		output.scrollTop = 99999
-		output.scrollLeft = 99999
+		output.scrollLeft = -99999
 		waiting = ""
 		doQueue()
 	})
