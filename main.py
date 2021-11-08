@@ -78,7 +78,7 @@ async def serve_websocket(ws, path):
 
             elif message.startswith("Define "):
                 if len(message.split(" ")) < 3:
-                    await ws.send("Invalid input")
+                    await ws.send("Err: Invalid input")
                     continue
                 symbol = message.split(" ")[1]
                 value = " ".join(message.split(" ")[2:])
